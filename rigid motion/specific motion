@@ -1,0 +1,301 @@
+# Task C - Square Trajectory Validation
+from pyniryo import *
+import numpy as np
+from numpy import sin, cos
+import platform
+import labtoolbox
+
+
+# get_pose was used to obtain the following coordinates
+# home of the robot
+x0 = 0.14004887322099896
+y0 = 2.1739106994127476e-05
+z0 = 0.20308353402406232
+theta0 = 0.0017196969977360443
+phi0 = 0.7559038370034528
+psi0 = 0.00016179277683617274
+
+
+# Coordinates of position 1 using robot.get_pose() function
+x1 = 0.3759769164437399
+y1 = 0.07285181137296359
+z1 = 0.08097944429078103
+theta1 = 1.489206378999395
+phi1 = 1.448611610972889
+psi1 = 1.5541618905104282
+
+
+# Coordinates of position 2 using robot.get_pose() function
+x2 = 0.3717618727912355
+y2 = -0.09740186224115861
+z2 = 0.08098993348478039
+theta2 = -1.148883705652656
+phi2 = 1.5268299437266883
+psi2 = -1.3302928166053751
+
+
+# Coordinates of position 3 using robot.get_pose() function
+x3 = 0.21626191129200836
+y3 = -0.09362217531023916
+z3 = 0.08835791042571047
+theta3 = -2.741329646507118
+phi3 = 1.3602356429120308
+psi3 = -2.9778828333314533
+
+
+# Coordinates of position 4 using robot.get_pose() function
+x4 = 0.20621097790943924
+y4 = 0.07367906431701257
+z4 = 0.08052859678484475
+theta4 = 2.2190220006241623
+phi4 = 1.4253257993716644
+psi4 = 2.2104320614842923
+
+
+# call the different points
+h = np.array([x0, y0, z0, theta0, phi0, psi0])
+p1 = np.array([x1, y1, z1, theta1, phi1, psi1])
+p2 = np.array([x2, y2, z2, theta2, phi2, psi2])
+p3 = np.array([x3, y3, z3, theta3, phi3, psi3])
+p4 = np.array([x4, y4, z4, theta4, phi4, psi4])
+
+
+pos_list = [h, p4, p3, p2, p1]
+
+
+
+
+def p2p_rotation(curr, target):
+
+
+    # matA = get_rot_from_origin(curr)
+    # matB = get_rot_from_origin(target)
+
+
+    matA = labtoolbox.p2tr(curr)
+    matB = labtoolbox.p2tr(target)
+
+
+    final = np.matmul(np.linalg.inv(matA), matB)
+    return final
+
+
+
+
+def get_new_target(my_pos, rot_matrix):
+    # use rotation matrix and current position to generate target
+    xyz = np.concatenate((my_pos[0:3], [1]))
+    xyz = np.reshape(xyz, (4, 1))
+
+
+    xyz = np.matmul(rot_matrix, xyz)
+    xyz = np.concatenate((xyz[0:3], np.resize(h[3:6], (3,)))) # package final position with 0 angle rotation
+
+
+    return np.reshape(xyz, (6,))
+
+
+
+
+def do_taskC(myrobot):
+
+
+    for i in range(0, np.size(pos_list, 0) - 1):
+        print("Motion ", i + 1, ":")
+        print(f"Getting from Current Position: \n{pos_list[i]} \nto Target \n{pos_list[i+1]}\n")
+
+
+        curr_pose = pos_list[i]
+        targ_pose = pos_list[i+1]
+        rot_matrix = p2p_rotation(curr_pose, targ_pose)
+        print("Rotation Matrix Necessary:")
+        print(rot_matrix)
+
+
+        target_pos = get_new_target(curr_pose, rot_matrix)
+
+
+        robot_move_to(myrobot, target_pos)
+        print("\n\n")
+
+
+
+
+def do_taskD(myrobot):
+
+
+    my_x = labtoolbox.p2tr(h)
+
+
+    return -5
+
+
+if "__main__" == __name__:
+    myrobot = robot_init("ned2.ee.ryerson.ca")
+    myrobot.grasp_with_tool()
+
+
+    print(myrobot.get_pose())
+
+
+    do_taskC(myrobot)
+    do_taskD(myrobot)
+    robot_shutdown(myrobot)
+
+
+import spatialmath
+from pyniryo import *
+import spatialmath.base as base
+import numpy as np
+from numpy import sin, cos
+import platform
+import labtoolbox
+robot_ip_address, workspace_name = "ned2.ee.ryerson.ca", "Ned Station"  # Connect to the robot #number
+
+
+
+
+def process(robot):
+   # Insert your code here busing the functions written below
+
+
+   home = PoseObject(x=0.1400, y=2.173e-05, z=0.20308, roll=0.00172, pitch=0.7559, yaw=0.000162)
+   target_pose1 = PoseObject(x=0.3467, y=-0.1831, z=0.0748, roll=-0.366, pitch=1.513, yaw=-0.295)
+   target_pose2 = PoseObject(x=0.2951, y=-0.1219, z=0.1497, roll=-0.088, pitch=0.011, yaw=-0.209)
+   target_pose3 = PoseObject(x=0.2762, y=0.0216, z=0.0553, roll=-0.094, pitch=0.052, yaw=0.162)
+   target_pose4 = PoseObject(x=0.2869, y=0.0190, z=0.2048, roll=-0.124, pitch=0.081, yaw=1.636)
+
+
+   robot.move_pose(home)
+   robot.open_gripper()
+   robot.move_pose(target_pose1)
+   robot.close_gripper()
+   robot.move_pose(target_pose2)
+   robot.move_pose(target_pose3)
+
+
+   # rotate 90 degrees
+   rotate_90 = robot.get_pose()
+   SEobj = p2tr(rotate_90)
+   pose = SEobj[0:3, 3]
+   SEobj_new = tr_maker(90, pose, 'deg', 'z')
+   rotation1 = SEobj[0:3, 0:3]
+   rotation2 = SEobj_new[0:3, 0:3]
+   new_rotation = rotation1 @ rotation2
+   SEobj[0:3, 0:3] = new_rotation
+   new_pose = tr2p(SEobj)
+   robot.move_pose(new_pose)
+   robot.open_gripper()
+   robot.move_pose(target_pose4)
+   robot.move_pose(home)
+
+
+
+
+# Some useful functions for you to use (and figure out! :p)
+def p2tr(pose):
+   """
+   Create SE(3) object from PoseObject # SE stands for special euclidean
+
+
+   :param pose: PoseObject
+   :return: SE(3) transformation object
+   """
+
+
+   pose_list = pose.to_list()  # to_list() returns a list [x, y, z, roll, pitch, yaw] corresponding to the pose's parameters
+   p = pose_list[0:3]
+   rpy = pose_list[3:6]
+   pose_r = base.rpy2tr(*rpy)
+   pose_p = base.transl(p)
+   pose_tr = pose_p @ pose_r
+   return pose_tr
+
+
+
+
+def tr2p(tr):
+   """
+   Create PoseObject from SE(3) object
+
+
+   :param tr: SE(3) transformation matrix
+   :return: PoseObject
+   """
+
+
+   send_p = tr[0:3, 3]
+   send_r = base.tr2rpy(tr)
+   packet = [*send_p, *send_r]
+   pose = PoseObject(*packet)
+   return pose
+
+
+
+
+def tr_maker(angle=None, position=None, units='rad', axis=None):
+   """
+   Create a transformation matrix from positional change and orientation change
+
+
+   ex. Suppose frame o0x0y0z0 is translated 1cm in x0 axis, 2cm in y0 axis, and 3cm in z0 axis,
+       then rotated about x0 axis 45 deg, then rotated 90 deg about y1 axis.
+       What is the resultant transformation matrix?
+
+
+       p = [0.1, 0.2, 0.3]
+       anglex = 45
+       angley = 90
+       trx = tr_maker(angle = anglex, position = p, units='deg', axis='x')
+       try = tr_maker(angle = angley, units = 'deg', axis = 'y')
+       tr_answer = trx@try
+
+
+   :param position: position vector of form [x, y, z] in metres, default is [0,0,0]
+   :param angle: rotation angle around axis given
+   :param units: angular units: 'rad' [default], or 'deg'
+   :param axis: axis of rotation: 'x', 'y', 'z'
+   :return: SE(3) transformation matrix
+   """
+
+
+   if position is None:
+       position = [0, 0, 0]
+   if units != 'rad' and units != 'deg':
+       raise ValueError("Units must be 'rad' or 'deg'")
+
+
+   tr_p = base.transl(*position)
+
+
+   if axis is None and angle is not None:
+       raise ValueError("Axis argument is 'None'")
+   elif angle is None:
+       tr_r = spatialmath.SE3._identity()
+   elif axis == 'x':
+       tr_r = base.trotx(angle, unit=units)
+   elif axis == 'y':
+       tr_r = base.troty(angle, unit=units)
+   elif axis == 'z':
+       tr_r = base.trotz(angle, unit=units)
+   else:
+       raise ValueError("Axis must be 'x', 'y', or 'z'")
+   tr = tr_p @ tr_r
+   return tr
+
+
+
+
+if __name__ == '__main__':
+   # Connect to robot
+   robot = NiryoRobot(robot_ip_address)
+   # Changing tool
+   robot.update_tool()
+   # Calibrate robot if robot needs calibration
+   robot.calibrate_auto()
+   # Launching main process
+   process(robot)
+   # Ending
+   robot.go_to_sleep()
+   # # Releasing connection
+   robot.close_connection()
