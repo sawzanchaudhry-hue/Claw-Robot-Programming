@@ -1,0 +1,127 @@
+import spatialmath
+from pyniryo import *
+import spatialmath.base as base
+import numpy as np
+from numpy import sin, cos
+import platform
+import labtoolbox
+
+
+robot_ip_address, workspace_name = "ned2.ee.ryerson.ca", "Ned Station"
+
+
+def process_reverse(robot):
+    # Define the same target poses
+    target_pose1 = PoseObject(x=0.3467, y=-0.1831, z=0.0848, roll=-0.366, pitch=1.513, yaw=-0.295)
+    target_pose2 = PoseObject(x=0.2951, y=-0.1219, z=0.1497, roll=-0.088, pitch=0.011, yaw=-0.209)
+    target_pose3 = PoseObject(x=0.2762, y=0.0216, z=0.0553, roll=-0.094, pitch=0.052, yaw=0.162)
+    target_pose4 = PoseObject(x=0.2869, y=0.0190, z=0.0698, roll=-0.124, pitch=0.081, yaw=1.636)
+    target_pose5 = PoseObject(x=0.2869, y=0.0190, z=0.1598, roll=-0.124, pitch=0.081, yaw=1.636)
+    home = PoseObject(x=0.1400, y=2.173e-05, z=0.20308, roll=0.00172, pitch=0.7559, yaw=0.000162)
+
+
+    # Start from target_pose4 (reverse of ending position)
+    robot.open_gripper()
+    robot.move_pose(target_pose5)
+    robot.move_pose(target_pose4)
+    robot.close_gripper()
+   
+    # Get current pose and rotate -90 degrees (reverse rotation)
+    rotate_neg90 = robot.get_pose()
+    SEobj = p2tr(rotate_neg90)
+    pose = SEobj[0:3, 3]
+    SEobj_new = tr_maker(-90, position=None, units='deg', axis='z')
+    rotation1 = SEobj[0:3, 0:3]
+    rotation2 = SEobj_new[0:3, 0:3]
+    new_rotation = rotation1 @ rotation2
+    SEobj[0:3, 0:3] = new_rotation
+    new_pose = tr2p(SEobj)
+    robot.move_pose(new_pose)
+   
+    # Move through poses in reverse order
+    robot.move_pose(target_pose3)
+    robot.move_pose(target_pose2)
+    robot.move_pose(target_pose1)
+    robot.open_gripper()
+    robot.move_pose(home)
+
+
+def p2tr(pose):
+    """
+    Create SE(3) object from PoseObject
+   
+    :param pose: PoseObject
+    :return: SE(3) transformation object
+    """
+    pose_list = pose.to_list()
+    p = pose_list[0:3]
+    rpy = pose_list[3:6]
+    pose_r = base.rpy2tr(*rpy)
+    pose_p = base.transl(p)
+    pose_tr = pose_p @ pose_r
+    return pose_tr
+
+
+def tr2p(tr):
+    """
+    Create PoseObject from SE(3) object
+   
+    :param tr: SE(3) transformation matrix
+    :return: PoseObject
+    """
+    send_p = tr[0:3, 3]
+    send_r = base.tr2rpy(tr)
+    packet = [*send_p, *send_r]
+    pose = PoseObject(*packet)
+    return pose
+
+
+def tr_maker(angle=None, position=None, units='rad', axis=None):
+    """
+    Create a transformation matrix from positional change and orientation change
+   
+    :param position: position vector of form [x, y, z] in metres, default is [0,0,0]
+    :param angle: rotation angle around axis given
+    :param units: angular units: 'rad' [default], or 'deg'
+    :param axis: axis of rotation: 'x', 'y', 'z'
+    :return: SE(3) transformation matrix
+    """
+    if position is None:
+        position = [0, 0, 0]
+    if units != 'rad' and units != 'deg':
+        raise ValueError("Units must be 'rad' or 'deg'")
+
+
+    tr_p = base.transl(*position)
+
+
+    if axis is None and angle is not None:
+        raise ValueError("Axis argument is 'None'")
+    elif angle is None:
+        tr_r = np.eye(4)
+    elif axis == 'x':
+        tr_r = base.trotx(angle, unit=units)
+    elif axis == 'y':
+        tr_r = base.troty(angle, unit=units)
+    elif axis == 'z':
+        tr_r = base.trotz(angle, unit=units)
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")
+    tr = tr_p @ tr_r
+    return tr
+
+
+if __name__ == '__main__':
+    # Connect to robot
+    robot = NiryoRobot(robot_ip_address)
+    # Changing tool
+    robot.update_tool()
+    # Calibrate robot if robot needs calibration
+    robot.calibrate_auto()
+    # Launching main process
+    process_reverse(robot)
+    # Ending
+    robot.go_to_sleep()
+    # Releasing connection
+    robot.close_connection()
+
