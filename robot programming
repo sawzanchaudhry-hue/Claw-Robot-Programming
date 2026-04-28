@@ -1,0 +1,130 @@
+import numpy as np #loads NumPy gives fast arrays/matrices
+import matplotlib.pyplot as plt # to create plots
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 -> imports 3D plotting support enables 3d plots
+
+
+# ----- put YOUR ID here -----
+STUDENT_ID = "501087346"
+# ----------------------------
+
+
+# 0) Seed for reproducibility per student
+np.random.seed(int(STUDENT_ID)) #seed random number generator
+
+
+print("Part 1")
+
+
+# a) diagonal from a seeded random 6-vector (or keep your fixed list if required)
+arbitrary = np.random.randint(0, 20, size=6) # or fixed list e.g. [3, 5, 2, 8, 1, 4]
+x = np.diag(arbitrary) # creates a 6x6 diagonal matix whose main diagonal entries are your arbitary vector
+print("Arbitrary vector:", arbitrary)
+print("Diagonal matrix:\n", x)
+
+
+# b) random 6x6 and diagonals
+random_mat = np.random.randint(1, 10, size=(6, 6)) # random matric 6x6 integers 1-9
+main_diag = np.diag(random_mat, k=0) # k=0 is main diagonal of the radom matrix
+first_sub_diag = np.diag(random_mat, k=-1) # k=-1 is first sub-diagonal (below main)
+print("\nRandom Matrix:\n", random_mat)
+print("Main diagonal:", main_diag)
+print("First sub-diagonal (k=-1):", first_sub_diag)
+
+
+# c) identity / ones / zeros
+identity = np.eye(6)
+array_ones = np.ones((6, 6))
+array_zeros = np.zeros((6, 6))
+print("\nIdentity:\n", identity)
+print("Ones:\n", array_ones)
+print("Zeros:\n", array_zeros)
+
+
+# d) another random 6x6; dims, per-column min/max values and positions; zero row2 col2..5
+arbitrary_int = np.random.randint(1, 10, size=(6, 6)) # random 6x6 integers 1-9
+dims = arbitrary_int.shape # (rows, cols)
+col_max_vals = arbitrary_int.max(axis=0) # max of each colmn (axis=0 -> go down each colmn)
+col_min_vals = arbitrary_int.min(axis=0) #min
+pos_max = arbitrary_int.argmax(axis=0)  # row indices of max in each colmn
+pos_min = arbitrary_int.argmin(axis=0) #min
+arbitrary_int[1, 1:5] = 0 # set row 2 (index 1) col, 2..5 (index 1:5) to zero
+print("\nArbitrary Int Matrix (after zeroing row2 col2..5):\n", arbitrary_int)
+print("Dimensions:", dims)
+print("Col max vals:", col_max_vals, "at rows:", pos_max)
+print("Col min vals:", col_min_vals, "at rows:", pos_min)
+
+
+print("\nPart 2")
+
+
+# a) N points, N = last digit + 30
+N = int(STUDENT_ID[-1]) + 30 #36
+xv = np.linspace(0, 2*np.pi, N) # N points evenly spaced from 0 to 2pi
+yv_sin = np.sin(xv) # calculate sin(x) for each x
+yv_cos = np.cos(xv) # same cos(x)
+
+
+plt.figure()
+plt.subplot(2, 1, 1)
+plt.plot(xv, yv_sin, label="sin(x)")
+plt.title("Sine and Cosine Functions")
+plt.xlabel("x (radians)")
+plt.ylabel("sin(x)")
+plt.grid(True)
+plt.legend()
+
+
+plt.subplot(2, 1, 2)
+plt.plot(xv, yv_cos, label="cos(x)")
+plt.xlabel("x (radians)")
+plt.ylabel("cos(x)")
+plt.grid(True)
+plt.legend()
+
+
+# b) one 3D plot of (sin x, cos x, x)
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d') # 3D subplot
+ax.plot(yv_sin, yv_cos, xv, label="(sin x, cos x, x)")
+ax.set_xlabel("sin(x)")
+ax.set_ylabel("cos(x)")
+ax.set_zlabel("x")
+ax.legend()
+
+
+plt.show()
+
+
+print("\nPart 3")
+
+
+# a) random A, B; ensure invertible before inv()
+def rand_invertible(n=6, low=1, high=10): # random invertible nxn matrix M with intergers between 1-9
+    while True:
+        M = np.random.randint(low, high, size=(n, n)) # random nxn matrix
+        if abs(np.linalg.det(M)) > 1e-8: # check if invertible (det does not = 0) threshold close to o 1e^-8
+            return M
+
+
+A = rand_invertible() #random invertible 6x6 metrix
+B = rand_invertible()
+print("Matrix A:\n", A)
+print("Matrix B:\n", B)
+
+
+# b) inverses and matrix product
+A_inv = np.linalg.inv(A) # compute inverse of A
+B_inv = np.linalg.inv(B)
+AB = A @ B # multiply A and B
+print("\nInverse of A:\n", A_inv)
+print("Inverse of B:\n", B_inv)
+print("A @ B:\n", AB)
+
+
+# (optional extras often asked)
+print("det(A) =", np.linalg.det(A)) # print determinant of A
+print("det(B) =", np.linalg.det(B))
+print("A^T:\n", A.T) # transpose of A
+print("B^T:\n", B.T)
+
+
