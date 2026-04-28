@@ -1,0 +1,327 @@
+import sympy as sp
+import numpy as np
+
+
+# A1) Symbols and basic rotation matrices
+# Lab notation: roll = phi (about x), pitch = alpha (about y), yaw = theta (about z)
+phi, alpha, theta = sp.symbols('phi alpha theta', real=True) # crate symols and tells sympy they are real
+
+
+#define basic rotation matrices
+def Rx(phi):
+    return sp.Matrix([
+        [1,            0,             0],
+        [0,  sp.cos(phi), -sp.sin(phi)],
+        [0,  sp.sin(phi),  sp.cos(phi)]
+    ])
+
+
+def Ry(alpha):
+    return sp.Matrix([
+        [ sp.cos(alpha), 0,  sp.sin(alpha)],
+        [ 0,             1,  0],
+        [-sp.sin(alpha), 0,  sp.cos(alpha)]
+    ])
+
+
+def Rz(theta):
+    return sp.Matrix([
+        [sp.cos(theta), -sp.sin(theta), 0],
+        [sp.sin(theta),  sp.cos(theta), 0],
+        [0,              0,             1]
+    ])
+
+
+# Composite orientation (extrinsic XYZ; roll→pitch→yaw)
+R_xyz = Rx(phi) * Ry(alpha) * Rz(theta)
+
+
+print("A1) Rotation matrices:")
+sp.pprint(sp.Matrix(Rx(phi)))
+sp.pprint(sp.Matrix(Ry(alpha)))
+sp.pprint(sp.Matrix(Rz(theta)))
+print("\nComposite R = Rx(phi) * Ry(alpha) * Rz(theta):")
+sp.pprint(sp.simplify(R_xyz))
+
+
+# A2) NumPy verification of Rx identities (NUMERIC)
+
+
+def Rx_np(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[1, 0, 0],
+                     [0, c,-s],
+                     [0, s, c]], dtype=float)
+
+
+
+
+# Creates a random number generator with a given seed for reproducibility
+def check_rx_identities_numpy(num_trials=10, tol=1e-12, seed=0):
+    rng = np.random.default_rng(seed) # random number generator that is the same each time
+    I = np.eye(3) # 3x3 indentity matrix
+
+
+    # (a) Rx(a) Rx(b) = Rx(a+b)
+    # test for num_trials random pairs (a,b)
+    for _ in range(num_trials):
+        a, b = rng.uniform(-np.pi, np.pi, size=2) # random angles in radians
+        lhs = Rx_np(a) @ Rx_np(b) # matrix multiply
+        rhs = Rx_np(a + b) # rotation by (a+b)
+        if not np.allclose(lhs, rhs, atol=tol): #check if close within tolerance
+            raise AssertionError("A2(a) failed for some a,b")
+    # (b) Rx(a) Rx(-a) = I
+    for _ in range(num_trials): # test for num_trials random angles
+        a = rng.uniform(-np.pi, np.pi) # random angles between -pi and pi
+        lhs = Rx_np(a) @ Rx_np(-a) # matric multiply
+        if not np.allclose(lhs, I, atol=tol):
+            raise AssertionError("A2(b) failed for some a")
+    print("A2) true = NumPy checks passed: Rx(a)Rx(b)=Rx(a+b) and Rx(a)Rx(-a)=I")
+
+
+check_rx_identities_numpy()
+
+
+
+
+# A3) Generic homogeneous transform  T_i^{i-1}
+# Position variables in metres:
+x, y, z = sp.symbols('x y z', real=True)
+
+
+
+
+def Ti_im1(x, y, z, phi, alpha, theta):
+    """
+    Homogeneous transform from frame i-1 to frame i
+    given translation (x,y,z) and orientation (roll=pitch=yaw=0)
+    """
+    R = Rx(phi) * Ry(alpha) * Rz(theta) # computes rotation r
+    T = sp.eye(4) #4x4 identity matrix
+    T[:3, :3] = R # replace top-left 3x3 with R
+    T[:3,  3] = sp.Matrix([x, y, z]) # insert translation vector in the last column
+    return sp.simplify(T)
+
+
+T_sym = Ti_im1(x, y, z, phi, alpha, theta)
+print("\nA3) Generic homogeneous transform  T_i^{i-1}:")
+sp.pprint(T_sym)
+
+
+## B
+deg = np.deg2rad
+def Rx(a): return np.array([[1,0,0],[0,np.cos(a),-np.sin(a)],[0,np.sin(a),np.cos(a)]])
+def Ry(a): return np.array([[np.cos(a),0,np.sin(a)],[0,1,0],[-np.sin(a),0,np.cos(a)]])
+def Rz(a): return np.array([[np.cos(a),-np.sin(a),0],[np.sin(a),np.cos(a),0],[0,0,1]])
+
+
+P = np.array([1,2,3])
+print("part B4)")
+print("30° about Z:", Rz(deg(30))@P)
+print("45° about X:", Rx(deg(45))@P)
+print("60° about Y:", Ry(deg(60))@P)
+
+
+R_total = Rz(deg(30)) @ Rx(deg(45)) @ Ry(deg(60))
+print("Consecutive:", R_total @ P)
+
+
+
+
+import spatialmath.base as sb
+
+
+# hdegrees->radians
+deg = np.deg2rad
+
+
+# define NumPy versions
+def Rx(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[1,0,0],[0,c,-s],[0,s,c]], float)
+
+
+def Ry(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[c,0,s],[0,1,0],[-s,0,c]], float)
+
+
+def Rz(a):
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[c,-s,0],[s,c,0],[0,0,1]], float)
+
+
+# original point
+P = np.array([1., 2., 3.])
+
+
+# A) Single rotations: compare NumPy vs spatialmath
+# 30° about Z
+Rz_np = Rz(deg(30))
+Rz_sb = sb.rotz(30, unit='deg')   # or sb.rotz(np.deg2rad(30), unit='rad')
+assert np.allclose(Rz_np, Rz_sb, atol=1e-12)
+assert np.allclose(Rz_np @ P, Rz_sb @ P, atol=1e-12)
+
+
+# 45° about X
+Rx_np = Rx(deg(45))
+Rx_sb = sb.rotx(45, unit='deg')
+assert np.allclose(Rx_np, Rx_sb, atol=1e-12)
+assert np.allclose(Rx_np @ P, Rx_sb @ P, atol=1e-12)
+
+
+# 60° about Y
+Ry_np = Ry(deg(60))
+Ry_sb = sb.roty(60, unit='deg')
+assert np.allclose(Ry_np, Ry_sb, atol=1e-12)
+assert np.allclose(Ry_np @ P, Ry_sb @ P, atol=1e-12)
+
+
+print("true Single-rotation matrices & vectors match.")
+
+
+# B) Consecutive (intrinsic/current-frame) rotation: Z then X then Y
+R_total_np = Rz_np @ Rx_np @ Ry_np
+R_total_sb = sb.rotz(30, 'deg') @ sb.rotx(45, 'deg') @ sb.roty(60, 'deg')
+
+
+assert np.allclose(R_total_np, R_total_sb, atol=1e-12)
+assert np.allclose(R_total_np @ P, R_total_sb @ P, atol=1e-12)
+
+
+print("true Consecutive rotation matrix & final point match.")
+
+
+P_final = R_total_sb @ P
+print("P_final =", P_final)
+
+
+#5
+# Rotation and translation (from your figure description)
+R = np.array([
+    [-1.0,  0.0, 0.0],  # x_B = -x_A
+    [ 0.0,  0.0, 1.0],  # y_B =  z_A
+    [ 0.0,  1.0, 0.0],  # z_B =  y_A
+])
+d = np.array([1.0, 1.0, 1.0])
+
+
+# (a) Final position of P in {A}, assuming P_B = [0.2, 0.2, 0]^T
+P_B_assumed = np.array([0.2, 0.2, 0.0])
+P_A_final = R @ P_B_assumed + d
+print(" Part 5")
+print("(a) P_A_final =", P_A_final)
+
+
+# (b) Homogeneous transformation H_A^B
+H = np.block([
+    [R, d.reshape(3,1)],
+    [np.zeros((1,3)), np.ones((1,1))]
+])
+print("\n(b) H_A^B =\n", H)
+
+
+
+
+# (c) Given P_A, find P_B = R^T (P_A - d)
+P_A_given = np.array([0.3, -0.1, 0.5])
+P_B_from_A = R.T @ (P_A_given - d)
+print("\n(c) P_B =", P_B_from_A)  
+
+
+##6
+
+
+def rotz(deg):
+    t = np.deg2rad(deg)
+    c, s = np.cos(t), np.sin(t)
+    T = np.eye(4); T[0,0]=c; T[0,1]=-s; T[1,0]=s; T[1,1]=c
+    return T
+
+
+def trans(x=0, y=0, z=0):
+    T = np.eye(4); T[:3,3] = [x, y, z]; return T
+
+
+def pose_point(H):
+    return H[:3,3].copy()
+
+
+def print_pose(name, H):
+    p = pose_point(H)
+    print(f"{name:>6s} position (cm): [{p[0]:8.4f}, {p[1]:8.4f}, {p[2]:8.4f}]")
+
+
+# in cm and degrees
+L_OF_OE   = 50.0          # OF -> OE: +X 50
+L_OE_OD_x = 50.0          # OE -> OD: +X 50
+L_OE_OD_z = 40.0          # OE -> OD: +Z 40
+ELBOW_Z   = +60.0         # rotation at OD: +60° about local Z (left)
+L_OD_OC   = 60.0          # OD -> OC: +X 60
+L_OC_OB_z = 50.0          # OC -> OB: +Z 50
+WRIST_Z   = -46.0         # rotation at OB: -46° about local Z (right)
+L_OB_A    = 40.0          # OB -> A: +X 40 (tool length)
+
+
+# build the chain of transformations
+H0 = np.eye(4)
+
+
+# OF -> OE
+H0E = H0 @ trans(x=L_OF_OE)
+
+
+# OE -> OD (no rotation yet)
+H0D = H0E @ trans(x=L_OE_OD_x, z=L_OE_OD_z)
+
+
+# At OD: rotate +60° about local Z
+H0Drot = H0D @ rotz(ELBOW_Z)
+
+
+# OD -> OC along the rotated x by 60 cm
+H0C = H0Drot @ trans(x=L_OD_OC)
+
+
+# OC -> OB +Z 50
+H0B = H0C @ trans(z=L_OC_OB_z)
+
+
+# At OB: rotate -46° about local Z
+H0Brot = H0B @ rotz(WRIST_Z)
+
+
+# OB -> A +X 40 (tool)
+H0A = H0Brot @ trans(x=L_OB_A)
+
+
+print("Part b6)")
+print_pose("  OE", H0E)
+print_pose("  OD", H0D)
+print_pose("  OC", H0C)
+print_pose("  OB", H0B)
+print_pose("   A", H0A)
+
+
+R = H0A[:3,:3]
+p = H0A[:3,3]
+x_axis_tool = R[:,0] / np.linalg.norm(R[:,0])   # tool x-axis as unit vector
+
+
+print("\nH_0A =")
+np.set_printoptions(precision=4, suppress=True)
+print(H0A)
+
+
+print("\nRotation orthonormality check (R^T R):")
+print(np.round(R.T @ R, 6))
+print("det(R) =", np.linalg.det(R))
+
+
+print("\nTool direction (x-axis in base, unit):", np.round(x_axis_tool, 6))
+print("End-effector position A (cm):", np.round(p, 4))
+
+
+# Optional: net yaw angle (since both joints rotate about Z)
+yaw_deg = np.rad2deg(np.arctan2(R[1,0], R[0,0]))
+print("Net yaw about Z (deg):", np.round(yaw_deg, 4))
